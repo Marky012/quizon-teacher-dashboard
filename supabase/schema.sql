@@ -39,6 +39,14 @@ create table if not exists public.classes (
 
 comment on table public.classes is 'A class of learners. The code is what a learner types into QuizOn!.';
 
+-- THE TEACHER IS THE SESSION, NOT A FIELD THE CLIENT FILLS IN.
+--
+-- Without this default, the dashboard has to read the signed-in user id and
+-- put it in the insert. That works, and the RLS policy checks it either way,
+-- but the default is one less thing to forget: with it, a class always
+-- belongs to whoever is signed in, even if a future screen forgets to say so.
+alter table public.classes alter column teacher_id set default auth.uid();
+
 -- --- the student records ---------------------------------------------------
 create table if not exists public.students (
   id            uuid primary key default gen_random_uuid(),

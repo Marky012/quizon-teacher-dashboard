@@ -57,6 +57,19 @@ export function Classes() {
     setBusy(true)
     setError(null)
 
+    // The class must belong to the teacher who is signed in, and the insert
+    // policy is `teacher_id = auth.uid()`. So the id has to be in the row.
+    //
+    // It is read from the session rather than typed in, and the database
+    // still checks it, so a teacher cannot create a class in someone else's
+    // account even by editing the request.
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+    if (userError || !userData.user) {
+      setError('Your session has expired. Sign in again.')
+      setBusy(false)
+      return
+    }
+
     // Try a few codes. The odds of a collision are tiny, but a duplicate
     // code is the one failure that would quietly mix two classes' records,
     // so the retry is not optional.
@@ -64,6 +77,7 @@ export function Classes() {
     for (let attempt = 0; attempt < 5; attempt++) {
       const code = generateClassCode()
       const { error: err } = await supabase.from('classes').insert({
+        teacher_id: userData.user.id,
         name: cleanName,
         section: section.trim() || null,
         code,
