@@ -38,6 +38,37 @@ const CLASS_CODE_LENGTH = 6
 /** A generous ceiling. The real payload is about 4 KB. */
 const MAX_BODY_BYTES = 256 * 1024
 
+/**
+ * THE ADMIN KEY, AND WHY IT IS READ THIS WAY.
+ *
+ * Supabase injects the privileged key into every function, but it moved:
+ *
+ *   SUPABASE_SECRET_KEYS       a JSON dictionary of the NEW style keys,
+ *                             keyed by name. This is what a project created
+ *                             with the new key format gets, and it is the
+ *                             one to use.
+ *   SUPABASE_SERVICE_ROLE_KEY  the LEGACY service_role JWT. Still injected,
+ *                             but a new-style project may have none.
+ *
+ * So: try the new one first, fall back to the legacy one, and fail loudly
+ * with a readable message if neither is there. A function that silently
+ * wrote with no key would look like it was working while storing nothing.
+ */
+function adminKey(): string {
+  const dict = Deno.env.get('SUPABASE_SECRET_KEYS')
+  if (dict) {
+    try {
+      const parsed = JSON.parse(dict) as Record<string, unknown>
+      for (const value of Object.values(parsed)) {
+        if (typeof value === 'string' && value.length > 0) return value
+      }
+    } catch {
+      // Not JSON. Fall through to the legacy key.
+    }
+  }
+  return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+}
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'content-type',
@@ -91,11 +122,14 @@ Deno.serve(async (req) => {
     return json(400, { ok: false, error: 'This app version is newer than the server.' })
   }
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  )
+  const key = adminKey()
+  if (!key) {
+    return json(500, { ok: false, error: 'The server has no admin key configured.' })
+  }
+
+  const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
 
   const { data: cls, error: classError } = await supabase
     .from('classes')
