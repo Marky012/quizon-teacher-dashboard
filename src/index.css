@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+/* ===========================================================================
+   THE TEACHER DASHBOARD.
+
+   Same colour language as the learner app, because it is the same product
+   seen from the other side. The tokens are copied rather than shared, for
+   the same reason the payload types are copied: these are two repositories
+   on purpose.
+
+   THE DASHBOARD IS A DESK TOOL, NOT A GAME. It is portrait-unfriendly on
+   purpose. A teacher opens it on a laptop, in a classroom, with thirty
+   children waiting, and the first question is always "who is behind, and
+   what do I do about it". So the layout is a wide table, the type is small
+   enough to fit a roster on one screen, and nothing animates.
+   =========================================================================== */
+
+@theme {
+  --color-cream: #fffdf4;
+  --color-indigo: #1a237e;
+  --color-navy: #1a2b4c;
+  --color-turquoise: #00d2c4;
+  --color-lime: #4bd37b;
+  --color-coral: #ff5e62;
+  --color-yellow: #ffd13b;
+  --color-violet: #7b61ff;
+
+  --color-indigo-soft: #d1d1dc;
+  --color-turquoise-soft: #ccf4ea;
+  --color-lime-soft: #dbf5dc;
+  --color-coral-soft: #ffded7;
+  --color-yellow-soft: #fff5cf;
+  --color-violet-soft: #e5def6;
+
+  --color-on-turquoise: #1a237e;
+  --color-focus: #ffd13b;
+
+  --font-display: 'Outfit', 'Trebuchet MS', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--color-cream);
+  color: var(--color-navy);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===========================================================================
+   PRINT. A teacher prints a class report and files it. The chrome comes
+   off, the ink comes out black, and the table keeps its borders so a
+   greyscale photocopy still reads.
+   =========================================================================== */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
+  .print-plain {
+    background: #fff !important;
+    color: #000 !important;
+    box-shadow: none !important;
+  }
+  table {
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid;
+  }
+}
