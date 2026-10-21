@@ -6,13 +6,63 @@ Everything below is free and needs no credit card. The whole stack costs
 | Piece | Where | Cost |
 |---|---|---|
 | Database + auth + sync endpoint | Supabase (Free tier) | $0 |
-| Teacher dashboard | Vercel (Hobby) | $0 |
-| Student PWA | Cloudflare Pages or Netlify | $0 |
+| Teacher dashboard | Vercel (Hobby) or Netlify | $0 |
+| Student PWA | Cloudflare Pages, Netlify or Vercel | $0 |
 | A hotspot for the sync window | The teacher's phone | $0 |
 
 ---
 
-## 1. Create the Supabase project (5 minutes)
+## STATUS: what is already live
+
+| Piece | Where it is | Done |
+|---|---|---|
+| Supabase project | `https://qovrlursadsjkdyowqwc.supabase.co` | ✅ |
+| Database + RLS policies | `supabase/schema.sql` applied | ✅ |
+| Teacher account | `caberojohnmarktinampay12@gmail.com` | ✅ |
+| Teacher dashboard | **https://quizon-teacher.netlify.app** | ✅ deployed and tested |
+| Student PWA | **https://quizon-365.netlify.app** | ✅ deployed and tested |
+| Teacher repo | `github.com/Marky012/quizon-teacher-dashboard` | ✅ pushed |
+| Sync edge function | `supabase/functions/sync-student` | ⬜ **the one thing left** |
+
+### The one thing left: deploy the edge function
+
+The function is the endpoint a learner device POSTs its record to. It is
+10 lines of code and the Dashboard can deploy it in two minutes:
+
+1. Supabase Dashboard → **Edge Functions** → **Create a new function**
+2. Name it `sync-student`
+3. Paste the whole of [`supabase/functions/sync-student/index.ts`](supabase/functions/sync-student/index.ts)
+   (also on GitHub, in the `supabase/functions/sync-student/` folder)
+4. **Deploy**
+5. Open the function → turn **Verify JWT OFF** (a learner device has no
+   Supabase account, so there is no token to verify)
+
+The endpoint is then:
+`https://qovrlursadsjkdyowqwc.supabase.co/functions/v1/sync-student`
+
+### Or: let the CLI do it
+
+If you would rather I finish it, create a Supabase **Personal Access
+Token** at <https://supabase.com/dashboard/account/tokens>, give it to me,
+and I will deploy the function and test the whole chain end to end. The
+token can be revoked straight afterwards.
+
+```bash
+npm install -g supabase
+supabase login --api-token <your-token>
+supabase link --project-ref qovrlursadsjkdyowqwc --password "<db password>"
+supabase functions deploy sync-student --no-verify-jwt
+```
+
+`--no-verify-jwt` is required. A learner device has no Supabase account and
+therefore no JWT to verify; the function authenticates with the service-role
+key that Supabase injects into every function automatically.
+
+---
+
+## The full setup, for anyone starting from scratch
+
+### 1. Create the Supabase project (5 minutes)
 
 1. Go to <https://supabase.com> → **Start a project**.
 2. Pick the free tier. Choose a region near you (**Singapore** or **Tokyo**
@@ -25,9 +75,7 @@ Everything below is free and needs no credit card. The whole stack costs
 able to use the dashboard immediately, and email delivery is not something a
 free project can be relied on for.
 
----
-
-## 2. Create the tables (1 minute)
+### 2. Create the tables (1 minute)
 
 Open **SQL Editor → New query**, paste the whole of
 [`supabase/schema.sql`](supabase/schema.sql), and press **Run**.
@@ -35,45 +83,11 @@ Open **SQL Editor → New query**, paste the whole of
 That creates the two tables, the indexes, and the Row Level Security
 policies. It is safe to run again.
 
----
+### 3. Deploy the sync endpoint
 
-## 3. Deploy the sync endpoint (5 minutes)
+See the STATUS section above.
 
-The endpoint is a Supabase Edge Function. It is what a learner device POSTs
-its record to.
-
-### Install the CLI
-
-```bash
-npm install -g supabase
-supabase login
-supabase link --project-ref YOUR-PROJECT-REF
-```
-
-The project ref is the first part of your project URL:
-`https://abcdefghijkl.supabase.co` → the ref is `abcdefghijkl`.
-
-### Deploy it
-
-```bash
-cd supabase/functions/sync-student
-supabase functions deploy sync-student --no-verify-jwt
-```
-
-**The `--no-verify-jwt` flag is required.** A learner device has no Supabase
-account and therefore no JWT to verify. The function authenticates with the
-service-role key instead. Without the flag every sync returns 401 and
-nothing ever arrives.
-
-You now have an endpoint URL:
-
-```
-https://YOUR-PROJECT.supabase.co/functions/v1/sync-student
-```
-
----
-
-## 4. Point the student app at it (2 minutes)
+### 4. Point the student app at it (2 minutes)
 
 In the **student app** folder (`quizon/`):
 
@@ -84,8 +98,12 @@ cp .env.example .env
 Edit `.env`:
 
 ```
-VITE_SYNC_ENDPOINT=https://YOUR-PROJECT.supabase.co/functions/v1/sync-student
+VITE_SYNC_ENDPOINT=https://qovrlursadsjkdyowqwc.supabase.co/functions/v1/sync-student
 ```
+
+This project already has that value as its built-in default, so a build
+works without the file. The variable still wins if it is set, and an
+**empty** value turns the feature off completely.
 
 Rebuild the app. The feature is **off** when this variable is empty, so a
 build with no endpoint behaves exactly like the old one, with no network
@@ -95,19 +113,26 @@ calls and no error messages.
 npm run build
 ```
 
----
+### 5. Deploy the teacher dashboard (5 minutes)
 
-## 5. Deploy the teacher dashboard (5 minutes)
+### On Netlify (what is live now)
+
+```bash
+npm install
+npm run build
+npx netlify-cli link --id f40ae6d4-c78a-4da1-b151-3ba2b9bf14f1
+npx netlify-cli env:set VITE_SUPABASE_URL "https://qovrlursadsjkdyowqwc.supabase.co"
+npx netlify-cli env:set VITE_SUPABASE_ANON_KEY "<publishable key>"
+npx netlify-cli deploy --prod
+```
 
 ### On Vercel
 
-1. Push this folder to its own GitHub repository (it is deliberately a
-   separate repository from the student app — see the note at the bottom).
+1. Push this folder to a GitHub repository.
 2. Go to <https://vercel.com> → **Add New → Project** → import the repo.
 3. Vercel detects Vite. Add the environment variables:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
-   (Both are in Supabase → **Project Settings → API**.)
 4. **Deploy.**
 
 `vercel.json` is already there with the SPA rewrite, so `/classes/abc123`
@@ -121,25 +146,38 @@ cp .env.example .env      # fill it in
 npm run dev               # http://localhost:5173
 ```
 
----
-
-## 6. Deploy the student PWA (5 minutes)
+### 6. Deploy the student PWA (5 minutes)
 
 The student app is a static PWA. It needs a host that rewrites unknown paths
 to `/index.html`, because the router uses clean URLs (`/hub`, `/quiz/easy`).
 
-**Cloudflare Pages** (free, unlimited bandwidth):
+**Netlify** (what is live now):
 
-- Create a project → connect the GitHub repo → build command `npm run build`
-  → output directory `dist`
-- **Settings → Functions → Single-page application → ON**
-- Environment variable: `VITE_SYNC_ENDPOINT`
+```bash
+npx netlify-cli link --id 2034bc89-eb35-41b7-92d9-db68665a35d7
+npx netlify-cli env:set VITE_SYNC_ENDPOINT "https://qovrlursadsjkdyowqwc.supabase.co/functions/v1/sync-student"
+npx netlify-cli deploy --prod
+```
 
-**Netlify** works the same way: build `npm run build`, publish `dist`, and
-`netlify.toml` handles the rewrite. (GitHub Pages does **not** do SPA
-rewrites without a workaround, so it is not the first choice.)
+`netlify.toml` in the student repo carries the SPA redirect and the
+no-cache headers for `index.html` and `sw.js`, which is what makes an
+update actually reach a learner's phone.
 
----
+**Cloudflare Pages** and **Vercel** work the same way. (GitHub Pages does
+**not** do SPA rewrites without a workaround, so it is not the first
+choice.)
+
+### 7. Connect the sites to GitHub, so a push deploys by itself
+
+The live sites were deployed from the command line, so a `git push` does not
+trigger a build yet. To wire that up, in Netlify:
+
+**Site configuration → Build & deploy → Continuous deployment → Connect to
+Git** → pick the repository → set the base directory, build command and
+publish directory from the tables above.
+
+Do it for both sites. After that, pushing the teacher app deploys the
+dashboard, and pushing the student app deploys the PWA.
 
 ## 7. The everyday workflow
 
