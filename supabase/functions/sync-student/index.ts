@@ -30,7 +30,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 /** The payload version this function understands. */
-const SUPPORTED_SCHEMA_VERSION = 1
+const SUPPORTED_SCHEMA_VERSION = 2
 
 /** Two letters and four digits. */
 const CLASS_CODE_LENGTH = 6
@@ -109,6 +109,17 @@ Deno.serve(async (req) => {
   const learnerCode = String(body.learnerCode ?? '').trim().toUpperCase().slice(0, 12)
   const deviceId = String(body.deviceId ?? '').trim().slice(0, 64)
   const schemaVersion = Number(body.schemaVersion ?? 0)
+  /* THE OFFICIAL NAME, and the one human identifier in the payload. The
+     nickname is NOT sent by the app and is not read here - if it ever
+     appeared, it would be dropped rather than stored.
+
+     The name is trimmed and collapsed here rather than trusted from the
+     device, because this is the last place before the database. It is also
+     CAPPED, so a device that sends a novel does not fill a column. */
+  const fullName = String(body.fullName ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, 60)
 
   if (classCode.length !== CLASS_CODE_LENGTH) {
     return json(400, { ok: false, error: 'That class code is not the right length.' })
@@ -152,6 +163,10 @@ Deno.serve(async (req) => {
       {
         class_id: cls.id,
         learner_code: learnerCode,
+        /* The name in its own column, so the roster can be sorted and
+           searched by it without reaching into the JSON payload. It also
+           stays inside the payload, which is the whole record. */
+        full_name: fullName || null,
         device_id: deviceId,
         payload: body,
         last_seen_at: new Date().toISOString(),

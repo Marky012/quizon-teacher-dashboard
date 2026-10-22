@@ -79,7 +79,13 @@ export function ClassDetail() {
       })
       .sort((a, b) => {
         if (a.needsAttention !== b.needsAttention) return a.needsAttention ? -1 : 1
-        return a.row.learner_code.localeCompare(b.row.learner_code)
+        /* BY NAME, because that is how a teacher reads a roster - and the
+           name is the headline the column shows. Rows with no name yet (a
+           device that has not reached the Profile screen) sort by their
+           learner code, which is the same fallback the column uses. */
+        const an = a.row.full_name || a.payload.fullName || a.row.learner_code
+        const bn = b.row.full_name || b.payload.fullName || b.row.learner_code
+        return an.localeCompare(bn)
       })
   }, [students])
 
@@ -266,9 +272,9 @@ export function ClassDetail() {
             <table className="w-full border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b-2 border-navy/20">
-                  <th scope="col" className="py-2 pr-3 font-bold text-navy">
-                    Learner
-                  </th>
+                    <th scope="col" className="py-2 pr-3 font-bold text-navy">
+                      Learner
+                    </th>
                   <th scope="col" className="py-2 pr-3 font-bold text-navy">
                     Status
                   </th>
@@ -293,8 +299,25 @@ export function ClassDetail() {
                 {summaries.map((s) => (
                   <tr key={s.row.id} className="border-b border-navy/10">
                     <th scope="row" className="py-2 pr-3">
+                      {/* THE NAME IS THE HEADLINE, and the code is the second
+                          line under it. That order is the whole point of the
+                          column: a teacher scanning a roster is looking for
+                          "Maria Santos Reyes", and the code is the fallback
+                          for a row that has no name yet - a device that has
+                          not reached the Profile screen, or a record written
+                          before the full name existed.
+
+                          The name comes from the COLUMN, not from the JSON
+                          payload, because the column is the one a query can
+                          sort on. The payload is still the source of truth
+                          for a record written before the column was added. */}
                       <Link to={`/students/${s.row.id}`} className="font-bold text-indigo underline">
-                        {s.row.learner_code}
+                        {s.row.full_name || s.payload.fullName || s.row.learner_code}
+                        {s.row.full_name || s.payload.fullName ? (
+                          <span className="block text-xs font-normal text-navy/70">
+                            {s.row.learner_code}
+                          </span>
+                        ) : null}
                       </Link>
                     </th>
                     <td className="py-2 pr-3">

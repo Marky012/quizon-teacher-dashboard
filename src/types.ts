@@ -17,7 +17,7 @@
    payload the server does not understand is refused, not half-read.
    =========================================================================== */
 
-export const SYNC_SCHEMA_VERSION = 1
+export const SYNC_SCHEMA_VERSION = 2
 
 export interface SyncSkill {
   id: string
@@ -77,6 +77,17 @@ export interface SyncPayload {
   schemaVersion: number
   classCode: string
   learnerCode: string
+  /**
+   * THE OFFICIAL NAME, and the only human identifier in the payload.
+   *
+   * Added in schema version 2. The in-game NICKNAME is deliberately absent
+   * and must stay absent: a nickname is a child's joke, not a legal name,
+   * and this dashboard is a record of real children.
+   *
+   * Empty on a record written by a build from before version 2, so every
+   * read of it has to cope with the empty string.
+   */
+  fullName: string
   deviceId: string
   sentAt: number
   skills: SyncSkill[]
@@ -92,6 +103,12 @@ export interface StudentRow {
   id: string
   class_id: string
   learner_code: string
+  /**
+   * The official name, mirrored into its own column so the roster can sort
+   * and search by it. It is also inside `payload.fullName` - the column is
+   * the copy that a query can use without reaching into JSON.
+   */
+  full_name: string | null
   device_id: string
   payload: SyncPayload
   last_seen_at: string

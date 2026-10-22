@@ -40,6 +40,30 @@ The function is the endpoint a learner device POSTs its record to. It is
 The endpoint is then:
 `https://qovrlursadsjkdyowqwc.supabase.co/functions/v1/sync-student`
 
+### RUN THE MIGRATION FIRST, 2026-10-22
+
+The learner app now sends the learner's **official full name**, so the
+`students` table needs a `full_name` column, and the edge function needs to
+be on schema version 2.
+
+**Order matters. The database first, then the function, then the dashboard.**
+
+1. Supabase Dashboard → **SQL Editor** → **New query** → paste
+   [`supabase/schema.sql`](supabase/schema.sql) → **Run**.
+   The file is safe to run on a database that already has the old schema:
+   the new column is added with `alter table ... add column if not exists`,
+   and every other statement is `if not exists` too.
+2. Redeploy the edge function (the steps above), so it writes `full_name` and
+   accepts `schemaVersion: 2`.
+3. Deploy the dashboard (`npm run build`, then Netlify/Vercel).
+
+**Why the order matters:** the dashboard reads the roster with `select *`, so
+a dashboard deployed before the migration fails on a missing column and the
+roster comes back empty. And a learner app on version 2 talking to a
+function that only knows version 1 is refused outright - which is the right
+behaviour, because a record stored with the wrong shape is worse than no
+record.
+
 ### Or: let the CLI do it
 
 If you would rather I finish it, create a Supabase **Personal Access

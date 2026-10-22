@@ -66,8 +66,25 @@ export function StudentDetail() {
         <Link to={`/classes/${row.class_id}`} className="text-sm text-navy/70 underline">
           Back to the roster
         </Link>
-        <h1 className="font-display text-3xl text-indigo">Learner {row.learner_code}</h1>
+        {/* THE NAME IS THE HEADLINE. Before 2026-10-22 this read "Learner
+            BAL-47" and nothing else, because the app sent no name at all. The
+            official name now travels with the record, so the page is titled
+            with the person and the code is the small second line under it -
+            the machine identifier, still there, just no longer the only thing
+            a teacher has to go on.
+
+            The code is the fallback for a row with no name: a device that has
+            not reached the Profile screen yet, or a record written before
+            the name existed. */}
+        <h1 className="font-display text-3xl text-indigo">
+          {row.full_name || payload.fullName || `Learner ${row.learner_code}`}
+        </h1>
         <p className="mt-1 text-navy/70">
+          {row.full_name || payload.fullName ? (
+            <>
+              Learner code <span className="font-bold text-navy">{row.learner_code}</span> ·{' '}
+            </>
+          ) : null}
           Last synced {timeAgo(row.last_seen_at)} · {formatDateTime(row.last_seen_at)}
         </p>
       </header>

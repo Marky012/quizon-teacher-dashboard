@@ -51,9 +51,24 @@ alter table public.classes alter column teacher_id set default auth.uid();
 create table if not exists public.students (
   id            uuid primary key default gen_random_uuid(),
   class_id      uuid not null references public.classes (id) on delete cascade,
-  -- The anonymous learner code from the app. Not a name: the app never
-  -- sends one.
+  -- The anonymous learner code from the app. The machine identifier: two
+  -- devices running the same learner code are two rows.
   learner_code  text not null,
+  -- THE OFFICIAL NAME, and the only human identifier on this table.
+  --
+  -- Added 2026-10-22. It is the name on the attendance sheet, and the
+  -- dashboard shows it as the roster's headline, because a teacher looking
+  -- at "BAL-47" cannot put a face to it.
+  --
+  -- The learner's in-game NICKNAME is deliberately NOT here and never will
+  -- be: a nickname is a child's joke, not a legal name, and this table is a
+  -- record of real children.
+  --
+  -- NULLABLE on purpose. A row written before this column existed has no
+  -- name in it, and the dashboard falls back to the learner code rather
+  -- than showing a blank cell. The same is true of a device that has not
+  -- reached the Profile screen yet.
+  full_name     text,
   -- One install of the app on one device. Two devices with the same learner
   -- code are two rows, because they are two different histories.
   device_id     text not null,
@@ -68,10 +83,23 @@ create table if not exists public.students (
   constraint students_device_unique unique (class_id, learner_code, device_id)
 );
 
-comment on column public.students.payload is 'The learner record as sent by QuizOn!. Contains no name.';
+comment on column public.students.payload is
+  'The learner record as sent by QuizOn!. Carries the official full name; never the nickname.';
+comment on column public.students.full_name is
+  'The official student name. Mirrored out of payload.full_name so the roster can sort by it.';
+
+-- THE MIGRATION, FOR A DATABASE THAT ALREADY EXISTS.
+--
+-- `create table if not exists` does not ADD a column to a table that is
+-- already there, so a deployment that ran this file before 2026-10-22 has a
+-- students table with no full_name column - and the index below would fail
+-- against a missing column. So the column is added explicitly, and the
+-- statement is safe to run on a fresh database too.
+alter table public.students add column if not exists full_name text;
 
 create index if not exists students_class_id_idx on public.students (class_id);
 create index if not exists students_learner_code_idx on public.students (learner_code);
+create index if not exists students_full_name_idx on public.students (full_name);
 create index if not exists students_last_seen_idx on public.students (last_seen_at desc);
 
 -- --- Row Level Security ----------------------------------------------------
